@@ -1,10 +1,9 @@
 from pygpe.shared.grid import Grid
 from pygpe.shared.wavefunction import _Wavefunction
+from pygpe.shared.backend import get_array_module, ensure_array_type
 
-try:
-    import cupy as cp  # type: ignore
-except ImportError:
-    import numpy as cp
+# Get the array module (numpy or cupy)
+xp = get_array_module()
 
 
 class ScalarWavefunction(_Wavefunction):
@@ -25,20 +24,24 @@ class ScalarWavefunction(_Wavefunction):
         """Constructs the wavefunction object."""
         super().__init__(grid)
 
-        self.component = cp.zeros(grid.shape, dtype="complex128")
-        self.fourier_component = cp.zeros(
+        # Ensure we use the current backend array module
+        xp = get_array_module()
+        
+        self.component = xp.zeros(grid.shape, dtype="complex128")
+        self.fourier_component = xp.zeros(
             grid.shape, dtype="complex128"
         )  # Fourier component
 
         self.atom_num = 0
 
-    def set_wavefunction(self, wavefunction: cp.ndarray) -> None:
+    def set_wavefunction(self, wavefunction: xp.ndarray) -> None:
         """Sets the wavefunction to the specified state.
 
         :param wavefunction:  The array to set the wavefunction as.
-        :type wavefunction: `cupy.ndarray`
+        :type wavefunction: `xp.ndarray`
         """
-        self.component = wavefunction
+        # Ensure array type is consistent with current backend
+        self.component = self._ensure_array_type(wavefunction)
         self._update_atom_number()
 
     def add_noise(self, mean: float, std_dev: float) -> None:
@@ -52,35 +55,42 @@ class ScalarWavefunction(_Wavefunction):
         self.component += super()._generate_complex_normal_dist(mean, std_dev)
         self._update_atom_number()
 
-    def apply_phase(self, phase: cp.ndarray, **kwargs) -> None:
+    def apply_phase(self, phase: xp.ndarray, **kwargs) -> None:
         """Applies a phase to the wavefunction.
 
         :param phase: The phase to apply.
-        :type phase: `cupy.ndarray`
+        :type phase: `xp.ndarray`
         """
-        self.component *= cp.exp(1j * phase)
+        # Ensure phase array is of the correct type
+        phase = self._ensure_array_type(phase)
+        xp = get_array_module()
+        self.component *= xp.exp(1j * phase)
 
     def _update_atom_number(self) -> None:
-        self.atom_num = self.grid.grid_spacing_product * cp.sum(
-            cp.abs(self.component) ** 2
+        xp = get_array_module()
+        self.atom_num = self.grid.grid_spacing_product * xp.sum(
+            xp.abs(self.component) ** 2
         )
 
     def fft(self) -> None:
         """Fourier transforms real-space component and updates Fourier-space
         component.
         """
-        self.fourier_component = cp.fft.fftn(self.component)
+        xp = get_array_module()
+        self.fourier_component = xp.fft.fftn(self.component)
 
     def ifft(self) -> None:
         """Inverse Fourier transforms Fourier-space component and updates
         real-space component.
         """
-        self.component = cp.fft.ifftn(self.fourier_component)
+        xp = get_array_module()
+        self.component = xp.fft.ifftn(self.fourier_component)
 
-    def density(self) -> cp.ndarray:
+    def density(self) -> xp.ndarray:
         """
 
         :return: An array of the condensate density.
         :rtype: `ndarray`
         """
-        return cp.abs(self.component) ** 2
+        xp = get_array_module()
+        return xp.abs(self.component) ** 2

@@ -1,11 +1,10 @@
 from abc import ABC, abstractmethod
 
 from pygpe.shared.grid import Grid
+from pygpe.shared.backend import get_array_module, ensure_array_type
 
-try:
-    import cupy as cp  # type: ignore
-except ImportError:
-    import numpy as cp
+# Get the array module (numpy or cupy)
+xp = get_array_module()
 
 
 class _Wavefunction(ABC):
@@ -24,7 +23,7 @@ class _Wavefunction(ABC):
         self.grid = grid
 
     @abstractmethod
-    def set_wavefunction(self, wfn: cp.ndarray) -> None:
+    def set_wavefunction(self, wfn: xp.ndarray) -> None:
         """Sets the components of the wavefunction to the specified
         array(s).
         """
@@ -42,20 +41,23 @@ class _Wavefunction(ABC):
         """
         pass
 
-    def _generate_complex_normal_dist(self, mean: float, std_dev: float) -> cp.ndarray:
-        """Returns a `cp.ndarray` of complex values containing results from
+    def _generate_complex_normal_dist(self, mean: float, std_dev: float) -> xp.ndarray:
+        """Returns a `xp.ndarray` of complex values containing results from
         a normal distribution.
         """
-        return cp.random.normal(
+        # Get the current array module to ensure consistent array types
+        xp = get_array_module()
+        
+        return xp.random.normal(
             mean, std_dev, size=self.grid.shape
-        ) + 1j * cp.random.normal(mean, std_dev, size=self.grid.shape)
+        ) + 1j * xp.random.normal(mean, std_dev, size=self.grid.shape)
 
     @abstractmethod
-    def apply_phase(self, phase: cp.ndarray, **kwargs) -> None:
+    def apply_phase(self, phase: xp.ndarray, **kwargs) -> None:
         """Applies a phase to the specified component(s).
 
         :param phase: Array of the condensate phase.
-        :type phase: cp.ndarray
+        :type phase: xp.ndarray
         """
         pass
 
@@ -74,10 +76,17 @@ class _Wavefunction(ABC):
         pass
 
     @abstractmethod
-    def density(self) -> cp.ndarray:
+    def density(self) -> xp.ndarray:
         """Computes the total density of the condensate.
 
         :return: Total density of the condensate.
-        :rtype: cp.ndarray
+        :rtype: xp.ndarray
         """
         pass
+        
+    def _ensure_array_type(self, array):
+        """Ensure array is of the correct type for the current backend.
+        
+        This is a helper method to ensure consistent array types across the codebase.
+        """
+        return ensure_array_type(array)

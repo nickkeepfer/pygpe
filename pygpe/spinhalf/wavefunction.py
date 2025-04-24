@@ -1,27 +1,25 @@
 from pygpe.shared.grid import Grid
 from pygpe.shared.wavefunction import _Wavefunction
+from pygpe.shared.backend import get_array_module, ensure_array_type
 
-try:
-    import cupy as cp  # type: ignore
-except ImportError:
-    import numpy as cp
-
+# Get the array module (numpy or cupy)
+xp = get_array_module()
 
 class SpinHalfWavefunction(_Wavefunction):
     def __init__(self, grid: Grid):
         """Constructs the wavefunction object."""
         super().__init__(grid)
 
-        self.plus_component = cp.zeros(grid.shape, dtype="complex128")
-        self.minus_component = cp.zeros(grid.shape, dtype="complex128")
-        self.fourier_plus_component = cp.zeros(grid.shape, dtype="complex128")
-        self.fourier_minus_component = cp.zeros(grid.shape, dtype="complex128")
+        self.plus_component = xp.zeros(grid.shape, dtype="complex128")
+        self.minus_component = xp.zeros(grid.shape, dtype="complex128")
+        self.fourier_plus_component = xp.zeros(grid.shape, dtype="complex128")
+        self.fourier_minus_component = xp.zeros(grid.shape, dtype="complex128")
 
         self.atom_num_plus = 0
         self.atom_num_minus = 0
 
     def set_wavefunction(
-        self, plus_component: cp.ndarray, minus_component: cp.ndarray
+        self, plus_component: xp.ndarray, minus_component: xp.ndarray
     ) -> None:
         """Set the wavefunction components to the specified arrays.
 
@@ -36,11 +34,11 @@ class SpinHalfWavefunction(_Wavefunction):
 
     def _update_atom_numbers(self) -> None:
         """Updates atom number variables after change in wavefunction."""
-        self.atom_num_plus = self.grid.grid_spacing_product * cp.sum(
-            cp.abs(self.plus_component) ** 2
+        self.atom_num_plus = self.grid.grid_spacing_product * xp.sum(
+            xp.abs(self.plus_component) ** 2
         )
-        self.atom_num_minus = self.grid.grid_spacing_product * cp.sum(
-            cp.abs(self.minus_component) ** 2
+        self.atom_num_minus = self.grid.grid_spacing_product * xp.sum(
+            xp.abs(self.minus_component) ** 2
         )
 
     def add_noise(self, components: str, mean: float, std_dev: float) -> None:
@@ -71,7 +69,7 @@ class SpinHalfWavefunction(_Wavefunction):
             case _:
                 raise ValueError(f"{components} is not a supported configuration")
 
-    def apply_phase(self, phase: cp.ndarray, components: str = "all") -> None:
+    def apply_phase(self, phase: xp.ndarray, components: str = "all") -> None:
         """Applies a given phase to the specified condensate components.
 
         :param phase: Array containing the required phase.
@@ -80,12 +78,12 @@ class SpinHalfWavefunction(_Wavefunction):
         """
         match components:
             case "plus":
-                self.plus_component *= cp.exp(1j * phase)
+                self.plus_component *= xp.exp(1j * phase)
             case "minus":
-                self.minus_component *= cp.exp(1j * phase)
+                self.minus_component *= xp.exp(1j * phase)
             case "all":
-                self.plus_component *= cp.exp(1j * phase)
-                self.minus_component *= cp.exp(1j * phase)
+                self.plus_component *= xp.exp(1j * phase)
+                self.minus_component *= xp.exp(1j * phase)
             case _:
                 raise ValueError(f"Components type {components} is unsupported")
 
@@ -93,16 +91,16 @@ class SpinHalfWavefunction(_Wavefunction):
         """Fourier transforms real-space components and updates Fourier-space
         components.
         """
-        self.fourier_plus_component = cp.fft.fftn(self.plus_component)
-        self.fourier_minus_component = cp.fft.fftn(self.minus_component)
+        self.fourier_plus_component = xp.fft.fftn(self.plus_component)
+        self.fourier_minus_component = xp.fft.fftn(self.minus_component)
 
     def ifft(self) -> None:
         """Inverse Fourier transforms Fourier-space components and updates
         real-space components."""
-        self.plus_component = cp.fft.ifftn(self.fourier_plus_component)
-        self.minus_component = cp.fft.ifftn(self.fourier_minus_component)
+        self.plus_component = xp.fft.ifftn(self.fourier_plus_component)
+        self.minus_component = xp.fft.ifftn(self.fourier_minus_component)
 
-    def density(self, components: str) -> cp.ndarray | tuple[cp.ndarray, cp.ndarray]:
+    def density(self, components: str) -> xp.ndarray | tuple[xp.ndarray, xp.ndarray]:
         """Calculates the density of the specified component(s).
 
         :param components: "plus", "minus", or "all". String specifying which
@@ -113,13 +111,13 @@ class SpinHalfWavefunction(_Wavefunction):
         """
         match components.lower():
             case "plus":
-                return cp.abs(self.plus_component) ** 2
+                return xp.abs(self.plus_component) ** 2
             case "minus":
-                return cp.abs(self.minus_component) ** 2
+                return xp.abs(self.minus_component) ** 2
             case "all":
                 return (
-                    cp.abs(self.plus_component) ** 2,
-                    cp.abs(self.minus_component) ** 2,
+                    xp.abs(self.plus_component) ** 2,
+                    xp.abs(self.minus_component) ** 2,
                 )
             case _:
                 raise ValueError(f"Components type {components} is unsupported")

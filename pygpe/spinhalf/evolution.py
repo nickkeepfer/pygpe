@@ -1,8 +1,8 @@
-try:
-    import cupy as cp  # type: ignore
-except ImportError:
-    import numpy as cp
+from pygpe.shared.backend import get_array_module
 from pygpe.spinhalf.wavefunction import SpinHalfWavefunction
+
+# Get the array module (numpy or cupy)
+xp = get_array_module()
 
 
 def step_wavefunction(wfn: SpinHalfWavefunction, params: dict) -> None:
@@ -28,8 +28,8 @@ def _kinetic_step(wfn: SpinHalfWavefunction, pm: dict) -> None:
     :param wfn: The wavefunction of the system.
     :param pm: The parameters' dictionary.
     """
-    wfn.fourier_plus_component *= cp.exp(-0.25 * 1j * pm["dt"] * wfn.grid.wave_number)
-    wfn.fourier_minus_component *= cp.exp(-0.25 * 1j * pm["dt"] * wfn.grid.wave_number)
+    wfn.fourier_plus_component *= xp.exp(-0.25 * 1j * pm["dt"] * wfn.grid.wave_number)
+    wfn.fourier_minus_component *= xp.exp(-0.25 * 1j * pm["dt"] * wfn.grid.wave_number)
 
 
 def _potential_step(wfn: SpinHalfWavefunction, pm: dict) -> None:
@@ -41,22 +41,22 @@ def _potential_step(wfn: SpinHalfWavefunction, pm: dict) -> None:
     current_plus_component = wfn.plus_component
     current_minus_component = wfn.minus_component
 
-    wfn.plus_component *= cp.exp(
+    wfn.plus_component *= xp.exp(
         -1j
         * pm["dt"]
         * (
             pm["trap"]
-            + pm["g_plus"] * cp.abs(current_plus_component) ** 2
-            + pm["g_pm"] * cp.abs(current_minus_component)
+            + pm["g_plus"] * xp.abs(current_plus_component) ** 2
+            + pm["g_pm"] * xp.abs(current_minus_component)
         )
     )
-    wfn.minus_component *= cp.exp(
+    wfn.minus_component *= xp.exp(
         -1j
         * pm["dt"]
         * (
             pm["trap"]
-            + pm["g_minus"] * cp.abs(current_minus_component) ** 2
-            + pm["g_pm"] * cp.abs(current_plus_component)
+            + pm["g_minus"] * xp.abs(current_minus_component) ** 2
+            + pm["g_pm"] * xp.abs(current_plus_component)
         )
     )
 
@@ -72,8 +72,8 @@ def _renormalise_wavefunction(wfn: SpinHalfWavefunction) -> None:
         wfn.atom_num_minus,
     )
     current_atom_plus, current_atom_minus = _calculate_atom_num(wfn)
-    wfn.plus_component *= cp.sqrt(correct_atom_plus / current_atom_plus)
-    wfn.minus_component *= cp.sqrt(correct_atom_minus / current_atom_minus)
+    wfn.plus_component *= xp.sqrt(correct_atom_plus / current_atom_plus)
+    wfn.minus_component *= xp.sqrt(correct_atom_minus / current_atom_minus)
     wfn.fft()
 
 
@@ -84,11 +84,11 @@ def _calculate_atom_num(wfn: SpinHalfWavefunction) -> tuple[int, int]:
     :return: The atom numbers of the plus, zero, and minus components,
         respectively.
     """
-    atom_num_plus = wfn.grid.grid_spacing_product * cp.sum(
-        cp.abs(wfn.plus_component) ** 2
+    atom_num_plus = wfn.grid.grid_spacing_product * xp.sum(
+        xp.abs(wfn.plus_component) ** 2
     )
-    atom_num_minus = wfn.grid.grid_spacing_product * cp.sum(
-        cp.abs(wfn.minus_component) ** 2
+    atom_num_minus = wfn.grid.grid_spacing_product * xp.sum(
+        xp.abs(wfn.minus_component) ** 2
     )
 
     return atom_num_plus, atom_num_minus

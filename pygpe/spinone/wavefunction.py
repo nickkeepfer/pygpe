@@ -1,11 +1,9 @@
 from pygpe.shared.grid import Grid
 from pygpe.shared.wavefunction import _Wavefunction
+from pygpe.shared.backend import get_array_module, ensure_array_type
 
-try:
-    import cupy as cp  # type: ignore
-except ImportError:
-    import numpy as cp
-
+# Get the array module (numpy or cupy)
+xp = get_array_module()
 
 class SpinOneWavefunction(_Wavefunction):
     """Represents the spin-1 BEC wavefunction.
@@ -15,28 +13,38 @@ class SpinOneWavefunction(_Wavefunction):
     :param grid: The numerical grid.
     :type grid: :class:`Grid`
 
-    :ivar plus_component: The real-space plus component array.
-    :ivar zero_component: The real-space zero component array.
-    :ivar minus_component: The real-space minus component array.
-    :ivar fourier_plus_component: The Fourier-space plus component array.
-    :ivar fourier_zero_component: The Fourier-space zero component array.
-    :ivar fourier_minus_component: The Fourier-space minus component array.
-    :ivar atom_num_plus: The atom number of the plus component.
-    :ivar atom_num_zero: The atom number of the zero component.
-    :ivar atom_num_minus: The atom number of the minus component.
-    :ivar grid: A reference to the grid object of the simulation.
+    :ivar plus_component: The +1 spin component of the real-space wavefunction
+        array.
+    :ivar zero_component: The 0 spin component of the real-space wavefunction
+        array.
+    :ivar minus_component: The -1 spin component of the real-space wavefunction
+        array.
+    :ivar fourier_plus_component: The +1 spin component of the Fourier-space
+        wavefunction array.
+    :ivar fourier_zero_component: The 0 spin component of the Fourier-space
+        wavefunction array.
+    :ivar fourier_minus_component: The -1 spin component of the Fourier-space
+        wavefunction array.
+    :ivar atom_num_plus: The atom number in the +1 spin component.
+    :ivar atom_num_zero: The atom number in the 0 spin component.
+    :ivar atom_num_minus: The atom number in the -1 spin component.
+    :ivar grid: Reference to the grid object of the simulation.
     """
 
-    def __init__(self, grid: Grid):
-        """Constructs the wavefunction object."""
+    def __init__(self, grid: Grid) -> None:
+        """Constructs the wavefunction object.
+
+        :param grid: The numerical grid.
+        :type grid: :class:`Grid`
+        """
         super().__init__(grid)
 
-        self.plus_component = cp.zeros(grid.shape, dtype="complex128")
-        self.zero_component = cp.zeros(grid.shape, dtype="complex128")
-        self.minus_component = cp.zeros(grid.shape, dtype="complex128")
-        self.fourier_plus_component = cp.zeros(grid.shape, dtype="complex128")
-        self.fourier_zero_component = cp.zeros(grid.shape, dtype="complex128")
-        self.fourier_minus_component = cp.zeros(grid.shape, dtype="complex128")
+        self.plus_component = xp.zeros(grid.shape, dtype="complex128")
+        self.zero_component = xp.zeros(grid.shape, dtype="complex128")
+        self.minus_component = xp.zeros(grid.shape, dtype="complex128")
+        self.fourier_plus_component = xp.zeros(grid.shape, dtype="complex128")
+        self.fourier_zero_component = xp.zeros(grid.shape, dtype="complex128")
+        self.fourier_minus_component = xp.zeros(grid.shape, dtype="complex128")
 
         self.atom_num_plus = 0
         self.atom_num_zero = 0
@@ -63,9 +71,9 @@ class SpinOneWavefunction(_Wavefunction):
 
     def set_wavefunction(
         self,
-        plus_component: cp.ndarray = None,
-        zero_component: cp.ndarray = None,
-        minus_component: cp.ndarray = None,
+        plus_component: xp.ndarray = None,
+        zero_component: xp.ndarray = None,
+        minus_component: xp.ndarray = None,
     ) -> None:
         """Sets the wavefunction components to the specified arrays.
 
@@ -133,7 +141,7 @@ class SpinOneWavefunction(_Wavefunction):
                 raise ValueError(f"{component} is not a supported configuration")
 
     def apply_phase(
-        self, phase: cp.ndarray, components: str | list[str] = "all"
+        self, phase: xp.ndarray, components: str | list[str] = "all"
     ) -> None:
         """Applies a phase to specified components.
 
@@ -153,73 +161,73 @@ class SpinOneWavefunction(_Wavefunction):
             case _:
                 raise ValueError(f"Components type {components} is unsupported")
 
-    def _apply_phase_to_component(self, phase: cp.ndarray, component: str) -> None:
+    def _apply_phase_to_component(self, phase: xp.ndarray, component: str) -> None:
         """Applies the specified phase to the specified component."""
         match component.lower():
             case "plus":
-                self.plus_component *= cp.exp(1j * phase)
+                self.plus_component *= xp.exp(1j * phase)
             case "zero":
-                self.zero_component *= cp.exp(1j * phase)
+                self.zero_component *= xp.exp(1j * phase)
             case "minus":
-                self.minus_component *= cp.exp(1j * phase)
+                self.minus_component *= xp.exp(1j * phase)
             case _:
                 raise ValueError(f"Component type {component} is unsupported")
 
     def _update_atom_numbers(self) -> None:
-        self.atom_num_plus = self.grid.grid_spacing_product * cp.sum(
-            cp.abs(self.plus_component) ** 2
+        self.atom_num_plus = self.grid.grid_spacing_product * xp.sum(
+            xp.abs(self.plus_component) ** 2
         )
-        self.atom_num_zero = self.grid.grid_spacing_product * cp.sum(
-            cp.abs(self.zero_component) ** 2
+        self.atom_num_zero = self.grid.grid_spacing_product * xp.sum(
+            xp.abs(self.zero_component) ** 2
         )
-        self.atom_num_minus = self.grid.grid_spacing_product * cp.sum(
-            cp.abs(self.minus_component) ** 2
+        self.atom_num_minus = self.grid.grid_spacing_product * xp.sum(
+            xp.abs(self.minus_component) ** 2
         )
 
     def fft(self) -> None:
         """Fourier transforms real-space components and updates Fourier-space
         components.
         """
-        self.fourier_plus_component = cp.fft.fftn(self.plus_component)
-        self.fourier_zero_component = cp.fft.fftn(self.zero_component)
-        self.fourier_minus_component = cp.fft.fftn(self.minus_component)
+        self.fourier_plus_component = xp.fft.fftn(self.plus_component)
+        self.fourier_zero_component = xp.fft.fftn(self.zero_component)
+        self.fourier_minus_component = xp.fft.fftn(self.minus_component)
 
     def ifft(self) -> None:
         """Inverse Fourier transforms Fourier-space components and updates
         real-space components.
         """
-        self.plus_component = cp.fft.ifftn(self.fourier_plus_component)
-        self.zero_component = cp.fft.ifftn(self.fourier_zero_component)
-        self.minus_component = cp.fft.ifftn(self.fourier_minus_component)
+        self.plus_component = xp.fft.ifftn(self.fourier_plus_component)
+        self.zero_component = xp.fft.ifftn(self.fourier_zero_component)
+        self.minus_component = xp.fft.ifftn(self.fourier_minus_component)
 
-    def density(self) -> cp.ndarray:
+    def density(self) -> xp.ndarray:
         """Returns an array of the total condensate density.
 
         :return: Total condensate density.
         """
         return (
-            cp.abs(self.plus_component) ** 2
-            + cp.abs(self.zero_component) ** 2
-            + cp.abs(self.minus_component) ** 2
+            xp.abs(self.plus_component) ** 2
+            + xp.abs(self.zero_component) ** 2
+            + xp.abs(self.minus_component) ** 2
         )
 
 
 def _polar_initial_state(wfn: SpinOneWavefunction, params: dict) -> None:
     """Sets wavefunction components to (easy-axis) polar state."""
-    wfn.plus_component = cp.zeros(wfn.grid.shape, dtype="complex128")
-    wfn.zero_component = cp.sqrt(params["n0"]) * cp.ones(
+    wfn.plus_component = xp.zeros(wfn.grid.shape, dtype="complex128")
+    wfn.zero_component = xp.sqrt(params["n0"]) * xp.ones(
         wfn.grid.shape, dtype="complex128"
     )
-    wfn.minus_component = cp.zeros(wfn.grid.shape, dtype="complex128")
+    wfn.minus_component = xp.zeros(wfn.grid.shape, dtype="complex128")
 
 
 def _ferromagnetic_initial_state(wfn: SpinOneWavefunction, params: dict) -> None:
     """Sets wavefunction components to ferromagnetic state."""
-    wfn.plus_component = cp.sqrt(params["n0"]) * cp.ones(
+    wfn.plus_component = xp.sqrt(params["n0"]) * xp.ones(
         wfn.grid.shape, dtype="complex128"
     )
-    wfn.zero_component = cp.zeros(wfn.grid.shape, dtype="complex128")
-    wfn.minus_component = cp.zeros(wfn.grid.shape, dtype="complex128")
+    wfn.zero_component = xp.zeros(wfn.grid.shape, dtype="complex128")
+    wfn.minus_component = xp.zeros(wfn.grid.shape, dtype="complex128")
 
 
 def _antiferromagnetic_initial_state(wfn: SpinOneWavefunction, params: dict) -> None:
@@ -229,15 +237,15 @@ def _antiferromagnetic_initial_state(wfn: SpinOneWavefunction, params: dict) -> 
     n = params["n0"]
 
     wfn.plus_component = (
-        cp.sqrt(n)
-        * cp.sqrt((1 + p / c2) / 2)
-        * cp.ones(wfn.grid.shape, dtype="complex128")
+        xp.sqrt(n)
+        * xp.sqrt((1 + p / c2) / 2)
+        * xp.ones(wfn.grid.shape, dtype="complex128")
     )
-    wfn.zero_component = cp.zeros(wfn.grid.shape, dtype="complex128")
+    wfn.zero_component = xp.zeros(wfn.grid.shape, dtype="complex128")
     wfn.minus_component = (
-        cp.sqrt(n)
-        * cp.sqrt((1 - p / c2) / 2)
-        * cp.ones(wfn.grid.shape, dtype="complex128")
+        xp.sqrt(n)
+        * xp.sqrt((1 - p / c2) / 2)
+        * xp.ones(wfn.grid.shape, dtype="complex128")
     )
 
 
@@ -249,23 +257,23 @@ def _broken_axisymmetry_initial_state(wfn: SpinOneWavefunction, params: dict) ->
     n = params["n0"]
 
     wfn.plus_component = (
-        cp.sqrt(n)
+        xp.sqrt(n)
         * (q + p)
         / (2 * q)
-        * cp.sqrt((-(p**2) + q**2 + 2 * c2 * n * q) / (2 * c2 * n * q))
-        * cp.ones(wfn.grid.shape, dtype="complex128")
+        * xp.sqrt((-(p**2) + q**2 + 2 * c2 * n * q) / (2 * c2 * n * q))
+        * xp.ones(wfn.grid.shape, dtype="complex128")
     )
     wfn.zero_component = (
-        cp.sqrt(n)
-        * cp.sqrt(
+        xp.sqrt(n)
+        * xp.sqrt(
             (q**2 - p**2) * (-(p**2) - q**2 + 2 * c2 * n * q) / (4 * c2 * n * q**3)
         )
-        * cp.ones(wfn.grid.shape, dtype="complex128")
+        * xp.ones(wfn.grid.shape, dtype="complex128")
     )
     wfn.minus_component = (
-        cp.sqrt(n)
+        xp.sqrt(n)
         * (q - p)
         / (2 * q)
-        * cp.sqrt((-(p**2) + q**2 + 2 * c2 * n * q) / (2 * c2 * n * q))
-        * cp.ones(wfn.grid.shape, dtype="complex128")
+        * xp.sqrt((-(p**2) + q**2 + 2 * c2 * n * q) / (2 * c2 * n * q))
+        * xp.ones(wfn.grid.shape, dtype="complex128")
     )

@@ -1,8 +1,8 @@
-try:
-    import cupy as cp  # type: ignore
-except ImportError:
-    import numpy as cp
+from pygpe.shared.backend import get_array_module
 from pygpe.shared.grid import Grid
+
+# Get the array module (numpy or cupy)
+xp = get_array_module()
 
 
 def _generate_positions(grid: Grid, num_vortices: int, threshold: float) -> iter:
@@ -22,9 +22,9 @@ def _generate_positions(grid: Grid, num_vortices: int, threshold: float) -> iter
             )
             return vortex_positions
 
-        position = cp.random.uniform(
+        position = xp.random.uniform(
             -grid.length_x / 2, grid.length_x / 2
-        ), cp.random.uniform(-grid.length_y / 2, grid.length_y / 2)
+        ), xp.random.uniform(-grid.length_y / 2, grid.length_y / 2)
 
         if _position_sufficiently_far(position, vortex_positions, threshold):
             vortex_positions.append(position)
@@ -54,11 +54,11 @@ def _position_sufficiently_far(
     return False
 
 
-def _heaviside(array: cp.ndarray) -> cp.ndarray:
+def _heaviside(array: xp.ndarray) -> xp.ndarray:
     """Computes the heaviside function on a given array and returns the
     result.
     """
-    return cp.where(array < 0, cp.zeros(array.shape), cp.ones(array.shape))
+    return xp.where(array < 0, xp.zeros(array.shape), xp.ones(array.shape))
 
 
 def _calculate_vortex_contribution(grid, x_pos, y_pos, circulation):
@@ -69,9 +69,9 @@ def _calculate_vortex_contribution(grid, x_pos, y_pos, circulation):
     :param y_pos: y position of the vortex.
     :param circulation: Circulation of the vortex, +1 or -1.
     """
-    y = 2 * cp.pi / grid.length_y * (grid.y_mesh - y_pos)
-    x = 2 * cp.pi / grid.length_x * (grid.x_mesh - x_pos)
-    phase_contribution = cp.arctan2(y, x)
+    y = 2 * xp.pi / grid.length_y * (grid.y_mesh - y_pos)
+    x = 2 * xp.pi / grid.length_x * (grid.x_mesh - x_pos)
+    phase_contribution = xp.arctan2(y, x)
 
     if circulation == -1:
         phase_contribution = -phase_contribution
@@ -79,7 +79,7 @@ def _calculate_vortex_contribution(grid, x_pos, y_pos, circulation):
     return phase_contribution
 
 
-def vortex_phase_profile(grid: Grid, num_vortices: int, threshold: float) -> cp.ndarray:
+def vortex_phase_profile(grid: Grid, num_vortices: int, threshold: float) -> xp.ndarray:
     """Constructs a 2D phase profile consisting of 2pi phase windings.
     This phase can be applied to a wavefunction to generate different types of
     vortices.
@@ -94,10 +94,10 @@ def vortex_phase_profile(grid: Grid, num_vortices: int, threshold: float) -> cp.
     """
     vortex_positions_iter = _generate_positions(grid, num_vortices, threshold)
 
-    phase = cp.zeros((grid.num_points_x, grid.num_points_y), dtype="float32")
+    phase = xp.zeros((grid.num_points_x, grid.num_points_y), dtype="float32")
 
     for _ in range(num_vortices // 2):
-        phase_temp = cp.zeros((grid.num_points_x, grid.num_points_y), dtype="float32")
+        phase_temp = xp.zeros((grid.num_points_x, grid.num_points_y), dtype="float32")
         x_pos_minus, y_pos_minus = next(
             vortex_positions_iter
         )  # Negative circulation vortex
@@ -106,29 +106,29 @@ def vortex_phase_profile(grid: Grid, num_vortices: int, threshold: float) -> cp.
         )  # Positive circulation vortex
 
         # Aux variables
-        y_minus = 2 * cp.pi / grid.length_y * (grid.y_mesh - y_pos_minus)
-        x_minus = 2 * cp.pi / grid.length_x * (grid.x_mesh - x_pos_minus)
-        y_plus = 2 * cp.pi / grid.length_y * (grid.y_mesh - y_pos_plus)
-        x_plus = 2 * cp.pi / grid.length_x * (grid.x_mesh - x_pos_plus)
+        y_minus = 2 * xp.pi / grid.length_y * (grid.y_mesh - y_pos_minus)
+        x_minus = 2 * xp.pi / grid.length_x * (grid.x_mesh - x_pos_minus)
+        y_plus = 2 * xp.pi / grid.length_y * (grid.y_mesh - y_pos_plus)
+        x_plus = 2 * xp.pi / grid.length_x * (grid.x_mesh - x_pos_plus)
 
         heaviside_x_plus = _heaviside(x_plus)
         heaviside_x_minus = _heaviside(x_minus)
 
-        for nn in cp.arange(-5, 6):
+        for nn in xp.arange(-5, 6):
             phase_temp += (
-                cp.arctan(
-                    cp.tanh((y_minus + 2 * cp.pi * nn) / 2)
-                    * cp.tan((x_minus - cp.pi) / 2)
+                xp.arctan(
+                    xp.tanh((y_minus + 2 * xp.pi * nn) / 2)
+                    * xp.tan((x_minus - xp.pi) / 2)
                 )
-                - cp.arctan(
-                    cp.tanh((y_plus + 2 * cp.pi * nn) / 2)
-                    * cp.tan((x_plus - cp.pi) / 2)
+                - xp.arctan(
+                    xp.tanh((y_plus + 2 * xp.pi * nn) / 2)
+                    * xp.tan((x_plus - xp.pi) / 2)
                 )
-                + cp.pi * (heaviside_x_plus - heaviside_x_minus)
+                + xp.pi * (heaviside_x_plus - heaviside_x_minus)
             )
         phase_temp -= (
             2
-            * cp.pi
+            * xp.pi
             * (grid.y_mesh - grid.y_mesh.min())
             * (x_pos_plus - x_pos_minus)
             / (grid.length_y * grid.length_x)
@@ -138,7 +138,7 @@ def vortex_phase_profile(grid: Grid, num_vortices: int, threshold: float) -> cp.
     return phase
 
 
-def add_dipole_pair(grid: Grid, threshold: float) -> cp.ndarray:
+def add_dipole_pair(grid: Grid, threshold: float) -> xp.ndarray:
     """Creates a phase profile with a central dipole pair separated along the y-axis by the specified threshold.
 
     :param grid: The 2D grid of the system.
@@ -154,7 +154,7 @@ def add_dipole_pair(grid: Grid, threshold: float) -> cp.ndarray:
     y_pos_minus = y_pos - threshold / 2
     y_pos_plus = y_pos + threshold / 2
 
-    phase = cp.zeros((grid.num_points_x, grid.num_points_y), dtype="float32")
+    phase = xp.zeros((grid.num_points_x, grid.num_points_y), dtype="float32")
 
     # Calculate phase contributions from both vortices
     phase += _calculate_vortex_contribution(

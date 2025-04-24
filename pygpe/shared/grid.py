@@ -1,7 +1,7 @@
-try:
-    import cupy as cp  # type: ignore
-except ImportError:
-    import numpy as cp
+from pygpe.shared.backend import get_array_module, ensure_array_type
+
+# Get the array module (numpy or cupy)
+xp = get_array_module()
 
 
 def _check_valid_tuple(points: tuple, grid_spacings: tuple) -> None:
@@ -89,19 +89,22 @@ class Grid:
 
     def _generate_1d_grids(self, points: int, grid_spacing: float):
         """Generates meshgrid for a 1D grid."""
+        # Get the current array module to ensure consistent array types
+        xp = get_array_module()
+        
         self.num_points_x = points
         self.grid_spacing_x = grid_spacing
         self.grid_spacing_product = self.grid_spacing_x
 
         self.length_x = self.num_points_x * self.grid_spacing_x
         self.x_mesh = (
-            cp.arange(-self.num_points_x // 2, self.num_points_x // 2)
+            xp.arange(-self.num_points_x // 2, self.num_points_x // 2)
             * self.grid_spacing_x
         )
 
-        self.fourier_spacing_x = cp.pi / (self.num_points_x // 2 * self.grid_spacing_x)
-        self.fourier_x_mesh = cp.fft.fftshift(
-            cp.arange(-self.num_points_x // 2, self.num_points_x // 2)
+        self.fourier_spacing_x = xp.pi / (self.num_points_x // 2 * self.grid_spacing_x)
+        self.fourier_x_mesh = xp.fft.fftshift(
+            xp.arange(-self.num_points_x // 2, self.num_points_x // 2)
             * self.fourier_spacing_x
         )
 
@@ -111,6 +114,9 @@ class Grid:
         self, points: tuple[int, ...], grid_spacings: tuple[float, ...]
     ):
         """Generates meshgrid for a 2D grid."""
+        # Get the current array module to ensure consistent array types
+        xp = get_array_module()
+        
         self.num_points_x, self.num_points_y = points
         self.grid_spacing_x, self.grid_spacing_y = grid_spacings
         self.grid_spacing_product = self.grid_spacing_x * self.grid_spacing_y
@@ -119,33 +125,33 @@ class Grid:
         self.length_y = self.num_points_y * self.grid_spacing_y
 
         x = (
-            cp.arange(-self.num_points_x // 2, self.num_points_x // 2)
+            xp.arange(-self.num_points_x // 2, self.num_points_x // 2)
             * self.grid_spacing_x
         )
         y = (
-            cp.arange(-self.num_points_y // 2, self.num_points_y // 2)
+            xp.arange(-self.num_points_y // 2, self.num_points_y // 2)
             * self.grid_spacing_y
         )
-        self.x_mesh, self.y_mesh = cp.meshgrid(x, y, indexing="ij")
+        self.x_mesh, self.y_mesh = xp.meshgrid(x, y, indexing="ij")
 
         # Generate Fourier space variables
-        self.fourier_spacing_x = cp.pi / (self.num_points_x // 2 * self.grid_spacing_x)
-        self.fourier_spacing_y = cp.pi / (self.num_points_y // 2 * self.grid_spacing_y)
+        self.fourier_spacing_x = xp.pi / (self.num_points_x // 2 * self.grid_spacing_x)
+        self.fourier_spacing_y = xp.pi / (self.num_points_y // 2 * self.grid_spacing_y)
 
         fourier_x = (
-            cp.arange(-self.num_points_x // 2, self.num_points_x // 2)
+            xp.arange(-self.num_points_x // 2, self.num_points_x // 2)
             * self.fourier_spacing_x
         )
         fourier_y = (
-            cp.arange(-self.num_points_y // 2, self.num_points_y // 2)
+            xp.arange(-self.num_points_y // 2, self.num_points_y // 2)
             * self.fourier_spacing_y
         )
 
-        self.fourier_x_mesh, self.fourier_y_mesh = cp.meshgrid(
+        self.fourier_x_mesh, self.fourier_y_mesh = xp.meshgrid(
             fourier_x, fourier_y, indexing="ij"
         )
-        self.fourier_x_mesh = cp.fft.fftshift(self.fourier_x_mesh)
-        self.fourier_y_mesh = cp.fft.fftshift(self.fourier_y_mesh)
+        self.fourier_x_mesh = xp.fft.fftshift(self.fourier_x_mesh)
+        self.fourier_y_mesh = xp.fft.fftshift(self.fourier_y_mesh)
 
         self.wave_number = self.fourier_x_mesh**2 + self.fourier_y_mesh**2
 
@@ -153,6 +159,9 @@ class Grid:
         self, points: tuple[int, ...], grid_spacings: tuple[float, ...]
     ):
         """Generates meshgrid for a 3D grid."""
+        # Get the current array module to ensure consistent array types
+        xp = get_array_module()
+        
         self.num_points_x, self.num_points_y, self.num_points_z = points
         (
             self.grid_spacing_x,
@@ -168,34 +177,34 @@ class Grid:
         self.length_z = self.num_points_z * self.grid_spacing_z
 
         x = (
-            cp.arange(-self.num_points_x // 2, self.num_points_x // 2)
+            xp.arange(-self.num_points_x // 2, self.num_points_x // 2)
             * self.grid_spacing_x
         )
         y = (
-            cp.arange(-self.num_points_y // 2, self.num_points_y // 2)
+            xp.arange(-self.num_points_y // 2, self.num_points_y // 2)
             * self.grid_spacing_y
         )
         z = (
-            cp.arange(-self.num_points_z // 2, self.num_points_z // 2)
+            xp.arange(-self.num_points_z // 2, self.num_points_z // 2)
             * self.grid_spacing_z
         )
-        self.x_mesh, self.y_mesh, self.z_mesh = cp.meshgrid(x, y, z, indexing="ij")
+        self.x_mesh, self.y_mesh, self.z_mesh = xp.meshgrid(x, y, z, indexing="ij")
 
         # Generate Fourier space variables
-        self.fourier_spacing_x = cp.pi / (self.num_points_x // 2 * self.grid_spacing_x)
-        self.fourier_spacing_y = cp.pi / (self.num_points_y // 2 * self.grid_spacing_y)
-        self.fourier_spacing_z = cp.pi / (self.num_points_z // 2 * self.grid_spacing_z)
+        self.fourier_spacing_x = xp.pi / (self.num_points_x // 2 * self.grid_spacing_x)
+        self.fourier_spacing_y = xp.pi / (self.num_points_y // 2 * self.grid_spacing_y)
+        self.fourier_spacing_z = xp.pi / (self.num_points_z // 2 * self.grid_spacing_z)
 
         fourier_x = (
-            cp.arange(-self.num_points_x // 2, self.num_points_x // 2)
+            xp.arange(-self.num_points_x // 2, self.num_points_x // 2)
             * self.fourier_spacing_x
         )
         fourier_y = (
-            cp.arange(-self.num_points_y // 2, self.num_points_y // 2)
+            xp.arange(-self.num_points_y // 2, self.num_points_y // 2)
             * self.fourier_spacing_y
         )
         fourier_z = (
-            cp.arange(-self.num_points_z // 2, self.num_points_z // 2)
+            xp.arange(-self.num_points_z // 2, self.num_points_z // 2)
             * self.fourier_spacing_z
         )
 
@@ -203,10 +212,10 @@ class Grid:
             self.fourier_x_mesh,
             self.fourier_y_mesh,
             self.fourier_z_mesh,
-        ) = cp.meshgrid(fourier_x, fourier_y, fourier_z, indexing="ij")
-        self.fourier_x_mesh = cp.fft.fftshift(self.fourier_x_mesh)
-        self.fourier_y_mesh = cp.fft.fftshift(self.fourier_y_mesh)
-        self.fourier_z_mesh = cp.fft.fftshift(self.fourier_z_mesh)
+        ) = xp.meshgrid(fourier_x, fourier_y, fourier_z, indexing="ij")
+        self.fourier_x_mesh = xp.fft.fftshift(self.fourier_x_mesh)
+        self.fourier_y_mesh = xp.fft.fftshift(self.fourier_y_mesh)
+        self.fourier_z_mesh = xp.fft.fftshift(self.fourier_z_mesh)
 
         self.wave_number = (
             self.fourier_x_mesh**2 + self.fourier_y_mesh**2 + self.fourier_z_mesh**2

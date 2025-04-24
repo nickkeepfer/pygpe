@@ -38,6 +38,57 @@ By default, PyGPE will use the CPU to perform calculations.
 However, if a CUDA-capable GPU is detected, PyGPE will automatically utilise it for drastic
 speed-ups in computation time.
 
+### Controlling GPU/CPU Usage
+
+PyGPE provides several ways to control whether computations run on CPU (using NumPy) or GPU (using CuPy):
+
+1. **Programmatically**:
+   ```python
+   import pygpe
+   
+   # Force CPU usage
+   pygpe.use_gpu(False)
+   
+   # Use GPU if available
+   pygpe.use_gpu(True)
+   
+   # Check current setting
+   is_using_gpu = pygpe.use_gpu()
+   
+   # Get the current array module (numpy or cupy)
+   xp = pygpe.get_array_module()
+   
+   # Convert GPU arrays to NumPy for visualization
+   numpy_array = pygpe.to_numpy(gpu_array)
+   ```
+
+2. **Using environment variables**:
+   ```bash
+   # Force CPU usage
+   export PYGPE_BACKEND=numpy
+   
+   # Force GPU usage (if available)
+   export PYGPE_BACKEND=cupy
+   
+   # Automatic detection (default)
+   export PYGPE_BACKEND=auto
+   ```
+
+3. **Handling mixed array types**:
+   
+   When mixing NumPy and CuPy arrays, use these helper functions to ensure consistent array types:
+   ```python
+   from pygpe.shared.backend import ensure_array_type, asarray
+   
+   # Convert any array to the current backend type
+   backend_array = ensure_array_type(some_array)
+   
+   # Like np.asarray but uses the current backend
+   backend_array = asarray([1, 2, 3, 4])
+   ```
+
+See the [backend_example.py](examples/backend_example.py) for a complete example.
+
 ## Examples
 
 See [examples](examples) folder for various examples on the usage of the library.
